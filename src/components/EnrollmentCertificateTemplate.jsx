@@ -32,7 +32,7 @@ const EnrollmentCertificateTemplate = forwardRef(({ data }, ref) => {
             <div>
                 <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0', color: '#333' }}>{data.universityName}</h1>
                 <div style={{ fontSize: '14px', color: '#666' }}>Office of the University Registrar</div>
-                <div style={{ fontSize: '12px', color: '#888' }}>123 University Blvd, City, State, 12345</div>
+                <div style={{ fontSize: '12px', color: '#888' }}>{data.universityAddress || '123 University Blvd, City, State, 12345'}</div>
             </div>
         </div>
 

@@ -164,6 +164,7 @@ export const generateRandomData = () => {
 
   return {
     universityName: university,
+    universityAddress: `${faker.number.int({min: 100, max: 9999})} University Blvd, ${faker.location.city()}, ${faker.location.state({ abbreviated: true })}, ${faker.location.zipCode()}`,
     studentName: `${lastName} ${firstName}`, 
     studentID: `${faker.string.numeric(6)}-${faker.string.numeric(4)}`,
     passportNumber: faker.string.alphanumeric(9).toUpperCase(), // Added passport

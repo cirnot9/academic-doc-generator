@@ -222,6 +222,7 @@ const App = () => {
           
           <div className="flex flex-col gap-6">
             <Input label="University Name" name="universityName" value={formData.universityName} onChange={handleInputChange} variant="bordered" labelPlacement="outside" placeholder="Enter university name" />
+            <Input label="University Address" name="universityAddress" value={formData.universityAddress} onChange={handleInputChange} variant="bordered" labelPlacement="outside" placeholder="Enter university address" />
             
             <div>
                 <label className="block text-sm font-medium text-foreground mb-2">University Logo (Optional)</label>
