@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { generateRandomData } from './utils/dataGenerator';
+import { generateRandomData, generateTeacherData } from './utils/dataGenerator';
 
 import TuitionTemplate from './components/TuitionTemplate';
 import TranscriptTemplate from './components/TranscriptTemplate';
@@ -13,9 +13,14 @@ import AdmissionLetterTemplate from './components/AdmissionLetterTemplate';
 import EnrollmentCertificateTemplate from './components/EnrollmentCertificateTemplate';
 import StudentCardFrontTemplate from './components/StudentCardFrontTemplate';
 import StudentCardBackTemplate from './components/StudentCardBackTemplate';
+import TeacherIdFrontTemplate from './components/TeacherIdFrontTemplate';
+import TeacherIdBackTemplate from './components/TeacherIdBackTemplate';
+import TeachingCertificateTemplate from './components/TeachingCertificateTemplate';
+import EmploymentLetterTemplate from './components/EmploymentLetterTemplate';
+import SalaryStatementTemplate from './components/SalaryStatementTemplate';
 
 const App = () => {
-  const [formData, setFormData] = useState(generateRandomData());
+  const [formData, setFormData] = useState(() => generateRandomData());
 
   const [exportMode, setExportMode] = useState("stitched-horizontal"); 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -24,6 +29,7 @@ const App = () => {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [includeStudentCard, setIncludeStudentCard] = useState(true);
+  const [userMode, setUserMode] = useState("student"); // "student" or "teacher"
   const panStartRef = useRef({ x: 0, y: 0 });
 
   const tuitionRef = useRef(null);
@@ -54,17 +60,34 @@ const App = () => {
     if (file && file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (event) => {
-            setFormData(prev => ({ ...prev, studentPhoto: event.target.result }));
+            if (userMode === "student") {
+                setFormData(prev => ({ ...prev, studentPhoto: event.target.result }));
+            } else {
+                setFormData(prev => ({ ...prev, teacherPhoto: event.target.result }));
+            }
         };
         reader.readAsDataURL(file);
     }
   };
 
   const regenerateData = () => {
+    const newData = userMode === "student" ? generateRandomData() : generateTeacherData();
     setFormData(prev => ({
-        ...generateRandomData(),
+        ...newData,
         universityLogo: prev.universityLogo,
-        studentPhoto: prev.studentPhoto
+        studentPhoto: prev.studentPhoto || prev.teacherPhoto,
+        teacherPhoto: prev.teacherPhoto || prev.studentPhoto
+    }));
+  };
+
+  const switchMode = (mode) => {
+    setUserMode(mode);
+    const newData = mode === "student" ? generateRandomData() : generateTeacherData();
+    setFormData(prev => ({
+        ...newData,
+        universityLogo: prev.universityLogo,
+        studentPhoto: mode === "student" ? prev.studentPhoto || prev.teacherPhoto : null,
+        teacherPhoto: mode === "teacher" ? prev.teacherPhoto || prev.studentPhoto : null
     }));
   };
 
@@ -158,19 +181,36 @@ const App = () => {
         return { name, data: canvas.toDataURL('image/png').split(',')[1] };
       };
 
-      const imagesToCapture = [
-        capture(hiddenTuitionRef, "Tuition_Statement.png"),
-        capture(hiddenTranscriptRef, "Transcript.png"),
-        capture(hiddenScheduleRef, "Schedule.png"),
-        capture(hiddenAdmissionRef, "Admission_Letter.png"),
-        capture(hiddenEnrollmentRef, "Enrollment_Certificate.png")
-      ];
+      let imagesToCapture = [];
+      
+      if (userMode === "student") {
+        imagesToCapture = [
+          capture(hiddenTuitionRef, "Tuition_Statement.png"),
+          capture(hiddenTranscriptRef, "Transcript.png"),
+          capture(hiddenScheduleRef, "Schedule.png"),
+          capture(hiddenAdmissionRef, "Admission_Letter.png"),
+          capture(hiddenEnrollmentRef, "Enrollment_Certificate.png")
+        ];
 
-      if (includeStudentCard) {
-        imagesToCapture.push(
-          capture(hiddenCardFrontRef, "Student_ID_Front.png"),
-          capture(hiddenCardBackRef, "Student_ID_Back.png")
-        );
+        if (includeStudentCard) {
+          imagesToCapture.push(
+            capture(hiddenCardFrontRef, "Student_ID_Front.png"),
+            capture(hiddenCardBackRef, "Student_ID_Back.png")
+          );
+        }
+      } else {
+        imagesToCapture = [
+          capture(hiddenTeachingCertRef, "Teaching_Certificate.png"),
+          capture(hiddenEmploymentLetterRef, "Employment_Letter.png"),
+          capture(hiddenSalaryStatementRef, "Salary_Statement.png")
+        ];
+
+        if (includeStudentCard) {
+          imagesToCapture.push(
+            capture(hiddenTeacherIdFrontRef, "Faculty_ID_Front.png"),
+            capture(hiddenTeacherIdBackRef, "Faculty_ID_Back.png")
+          );
+        }
       }
 
       const images = await Promise.all(imagesToCapture);
@@ -203,6 +243,16 @@ const App = () => {
   const hiddenCardBackRef = useRef(null);
   const cardFrontRef = useRef(null);
   const cardBackRef = useRef(null);
+  
+  // Teacher refs
+  const hiddenTeacherIdFrontRef = useRef(null);
+  const hiddenTeacherIdBackRef = useRef(null);
+  const hiddenTeachingCertRef = useRef(null);
+  const hiddenEmploymentLetterRef = useRef(null);
+  const hiddenSalaryStatementRef = useRef(null);
+  const teacherIdFrontRef = useRef(null);
+  const teacherIdBackRef = useRef(null);
+  const teachingCertRef = useRef(null);
 
   const exportSingle = async (ref, filename) => {
     if (!ref.current) return;
@@ -266,6 +316,26 @@ const App = () => {
     <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
       {/* Top Toolbar */}
       <div className="h-14 flex-shrink-0 border-b border-divider bg-content1 z-30 flex items-center px-4 gap-3">
+        <div className="flex items-center gap-2 mr-4">
+          <span className="text-xs text-foreground/60">Mode:</span>
+          <div className="flex rounded-lg border border-divider overflow-hidden">
+            <button 
+              className={`px-3 py-1 text-xs font-medium ${userMode === "student" ? "bg-primary text-white" : "bg-content2 text-foreground/60"}`}
+              onClick={() => switchMode("student")}
+            >
+              Student
+            </button>
+            <button 
+              className={`px-3 py-1 text-xs font-medium ${userMode === "teacher" ? "bg-primary text-white" : "bg-content2 text-foreground/60"}`}
+              onClick={() => switchMode("teacher")}
+            >
+              Teacher
+            </button>
+          </div>
+        </div>
+
+        <Divider orientation="vertical" className="h-8" />
+
         <span className="font-bold text-primary text-sm">Stitch:</span>
         <Button 
           color="primary" 
@@ -310,42 +380,94 @@ const App = () => {
         <Divider orientation="vertical" className="h-8" />
 
         <span className="font-bold text-foreground/60 text-sm">Single:</span>
-        <Button 
-          color="default" 
-          variant="flat"
-          size="sm"
-          onClick={() => exportSingle(hiddenAdmissionRef, "Admission_Letter.png")}
-          isLoading={isGenerating}
-        >
-          Admission
-        </Button>
-        <Button 
-          color="default" 
-          variant="flat"
-          size="sm"
-          onClick={() => exportSingle(hiddenEnrollmentRef, "Enrollment_Certificate.png")}
-          isLoading={isGenerating}
-        >
-          Enrollment
-        </Button>
-        <Button 
-          color="default" 
-          variant="flat"
-          size="sm"
-          onClick={() => exportSingle(hiddenCardFrontRef, "Student_ID_Front.png")}
-          isLoading={isGenerating}
-        >
-          ID Front
-        </Button>
-        <Button 
-          color="default" 
-          variant="flat"
-          size="sm"
-          onClick={() => exportSingle(hiddenCardBackRef, "Student_ID_Back.png")}
-          isLoading={isGenerating}
-        >
-          ID Back
-        </Button>
+        {userMode === "student" ? (
+          <>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenAdmissionRef, "Admission_Letter.png")}
+              isLoading={isGenerating}
+            >
+              Admission
+            </Button>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenEnrollmentRef, "Enrollment_Certificate.png")}
+              isLoading={isGenerating}
+            >
+              Enrollment
+            </Button>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenCardFrontRef, "Student_ID_Front.png")}
+              isLoading={isGenerating}
+            >
+              ID Front
+            </Button>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenCardBackRef, "Student_ID_Back.png")}
+              isLoading={isGenerating}
+            >
+              ID Back
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenTeachingCertRef, "Teaching_Certificate.png")}
+              isLoading={isGenerating}
+            >
+              Certificate
+            </Button>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenEmploymentLetterRef, "Employment_Letter.png")}
+              isLoading={isGenerating}
+            >
+              Employment
+            </Button>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenSalaryStatementRef, "Salary_Statement.png")}
+              isLoading={isGenerating}
+            >
+              Salary
+            </Button>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenTeacherIdFrontRef, "Teacher_ID_Front.png")}
+              isLoading={isGenerating}
+            >
+              ID Front
+            </Button>
+            <Button 
+              color="default" 
+              variant="flat"
+              size="sm"
+              onClick={() => exportSingle(hiddenTeacherIdBackRef, "Teacher_ID_Back.png")}
+              isLoading={isGenerating}
+            >
+              ID Back
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -380,7 +502,9 @@ const App = () => {
                   </Button>
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-foreground mb-1">Student Photo</label>
+                  <label className="block text-xs font-medium text-foreground mb-1">
+                    {userMode === "student" ? "Student Photo" : "Teacher Photo"}
+                  </label>
                   <Button 
                     as="label" 
                     variant="flat" 
@@ -400,19 +524,42 @@ const App = () => {
               <Input label="University Address" name="universityAddress" value={formData.universityAddress} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
 
               <Divider className="my-1" />
-              <h3 className="text-sm font-semibold text-foreground/70">Student Info</h3>
+              <h3 className="text-sm font-semibold text-foreground/70">
+                {userMode === "student" ? "Student Info" : "Teacher Info"}
+              </h3>
               
-              <Input label="Student Name" name="studentName" value={formData.studentName} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
-              <Input label="Student ID" name="studentID" value={formData.studentID} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
-              <Input label="Address" name="address" value={formData.address} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
-              
-              <Divider className="my-1" />
-              <h3 className="text-sm font-semibold text-foreground/70">Academic Info</h3>
-              
-              <Input label="Term" name="term" value={formData.term} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
-              <Input label="Major" name="major" value={formData.major} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
-              <Input label="Program" name="program" value={formData.program} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
-              <Input label="College" name="college" value={formData.college} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+              {userMode === "student" ? (
+                <Input label="Student Name" name="studentName" value={formData.studentName} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+              ) : (
+                <Input label="Teacher Name" name="teacherFullName" value={formData.teacherFullName} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+              )}
+              {userMode === "student" ? (
+                <>
+                  <Input label="Student ID" name="studentID" value={formData.studentID} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="Address" name="address" value={formData.address} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  
+                  <Divider className="my-1" />
+                  <h3 className="text-sm font-semibold text-foreground/70">Academic Info</h3>
+                  
+                  <Input label="Term" name="term" value={formData.term} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="Major" name="major" value={formData.major} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="Program" name="program" value={formData.program} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="College" name="college" value={formData.college} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                </>
+              ) : (
+                <>
+                  <Input label="Employee ID" name="employeeID" value={formData.employeeID} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="Address" name="address" value={formData.address} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  
+                  <Divider className="my-1" />
+                  <h3 className="text-sm font-semibold text-foreground/70">Employment Info</h3>
+                  
+                  <Input label="Department" name="department" value={formData.department} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="Position" name="position" value={formData.position} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="College" name="college" value={formData.college} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                  <Input label="Hire Date" name="hireDate" value={formData.hireDate} onChange={handleInputChange} variant="bordered" labelPlacement="outside" size="sm" />
+                </>
+              )}
               
               <Divider className="my-1" />
               <h3 className="text-sm font-semibold text-foreground/70">Dates</h3>
@@ -460,6 +607,23 @@ const App = () => {
           <div style={{ backgroundColor: 'white', width: '750px', height: '480px' }}>
             <StudentCardBackTemplate ref={hiddenCardBackRef} data={formData} />
           </div>
+          
+          {/* Teacher Documents */}
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <TeachingCertificateTemplate ref={hiddenTeachingCertRef} data={formData} />
+          </div>
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <EmploymentLetterTemplate ref={hiddenEmploymentLetterRef} data={formData} />
+          </div>
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <SalaryStatementTemplate ref={hiddenSalaryStatementRef} data={formData} />
+          </div>
+          <div style={{ backgroundColor: 'white', width: '750px', height: '480px' }}>
+            <TeacherIdFrontTemplate ref={hiddenTeacherIdFrontRef} data={formData} />
+          </div>
+          <div style={{ backgroundColor: 'white', width: '750px', height: '480px' }}>
+            <TeacherIdBackTemplate ref={hiddenTeacherIdBackRef} data={formData} />
+          </div>
       </div>
 
       {/* Main Preview Area - Infinite Canvas Style */}
@@ -487,9 +651,9 @@ const App = () => {
                     tabContent: "group-data-[selected=true]:text-white text-zinc-400 font-medium"
                 }}
             >
-                <Tab key="main" title="Standard Documents (3)" />
-                <Tab key="extra" title="Extra Documents (2)" />
-                <Tab key="card" title="Student ID Card" />
+                <Tab key="main" title={userMode === "student" ? "Standard Documents (3)" : "Core Documents (3)"} />
+                <Tab key="extra" title={userMode === "student" ? "Extra Documents (2)" : "Extra Documents (2)"} />
+                <Tab key="card" title={userMode === "student" ? "Student ID Card" : "Faculty ID Card"} />
             </Tabs>
         </div>
 
@@ -538,38 +702,77 @@ const App = () => {
                             height: 'max-content',
                         }}
                     >
-                        <motion.div 
-                            drag 
-                            dragMomentum={false}
-                            className="relative group document-card"
-                        >
-                            <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Tuition Statement</div>
-                            <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
-                                <TuitionTemplate ref={tuitionRef} data={formData} />
-                            </div>
-                        </motion.div>
-                        
-                        <motion.div 
-                            drag 
-                            dragMomentum={false}
-                            className="relative group document-card"
-                        >
-                            <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Transcript</div>
-                            <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
-                                <TranscriptTemplate ref={transcriptRef} data={formData} />
-                            </div>
-                        </motion.div>
+                        {userMode === "student" ? (
+                            <>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Tuition Statement</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <TuitionTemplate ref={tuitionRef} data={formData} />
+                                    </div>
+                                </motion.div>
+                                
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Transcript</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <TranscriptTemplate ref={transcriptRef} data={formData} />
+                                    </div>
+                                </motion.div>
 
-                        <motion.div 
-                            drag 
-                            dragMomentum={false}
-                            className="relative group document-card"
-                        >
-                            <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Course Schedule</div>
-                            <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
-                                <ScheduleTemplate ref={scheduleRef} data={formData} />
-                            </div>
-                        </motion.div>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Course Schedule</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <ScheduleTemplate ref={scheduleRef} data={formData} />
+                                    </div>
+                                </motion.div>
+                            </>
+                        ) : (
+                            <>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Teaching Certificate</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <TeachingCertificateTemplate ref={teachingCertRef} data={formData} />
+                                    </div>
+                                </motion.div>
+                                
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Employment Letter</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <EmploymentLetterTemplate data={formData} />
+                                    </div>
+                                </motion.div>
+
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Salary Statement</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <SalaryStatementTemplate data={formData} />
+                                    </div>
+                                </motion.div>
+                            </>
+                        )}
                     </motion.div>
                 )}
                 {activeCanvas === "extra" && (
@@ -585,27 +788,66 @@ const App = () => {
                             height: 'max-content',
                         }}
                     >
-                        <motion.div 
-                            drag 
-                            dragMomentum={false}
-                            className="relative group document-card"
-                        >
-                            <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Admission Letter</div>
-                            <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
-                                <AdmissionLetterTemplate ref={admissionRef} data={formData} />
-                            </div>
-                        </motion.div>
+                        {userMode === "student" ? (
+                            <>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Admission Letter</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <AdmissionLetterTemplate ref={admissionRef} data={formData} />
+                                    </div>
+                                </motion.div>
 
-                        <motion.div 
-                            drag 
-                            dragMomentum={false}
-                            className="relative group document-card"
-                        >
-                            <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Enrollment Cert</div>
-                            <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
-                                <EnrollmentCertificateTemplate ref={enrollmentRef} data={formData} />
-                            </div>
-                        </motion.div>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Enrollment Cert</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <EnrollmentCertificateTemplate ref={enrollmentRef} data={formData} />
+                                    </div>
+                                </motion.div>
+                            </>
+                        ) : (
+                            <>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Teaching Certificate</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <TeachingCertificateTemplate data={formData} />
+                                    </div>
+                                </motion.div>
+
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Employment Letter</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <EmploymentLetterTemplate data={formData} />
+                                    </div>
+                                </motion.div>
+
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Salary Statement</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <SalaryStatementTemplate data={formData} />
+                                    </div>
+                                </motion.div>
+                            </>
+                        )}
                     </motion.div>
                 )}
                 {activeCanvas === "card" && (
@@ -621,27 +863,55 @@ const App = () => {
                             height: 'max-content',
                         }}
                     >
-                        <motion.div 
-                            drag 
-                            dragMomentum={false}
-                            className="relative group document-card"
-                        >
-                            <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Student ID (Front)</div>
-                            <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
-                                <StudentCardFrontTemplate ref={cardFrontRef} data={formData} />
-                            </div>
-                        </motion.div>
+                        {userMode === "student" ? (
+                            <>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Student ID (Front)</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <StudentCardFrontTemplate ref={cardFrontRef} data={formData} />
+                                    </div>
+                                </motion.div>
 
-                        <motion.div 
-                            drag 
-                            dragMomentum={false}
-                            className="relative group document-card"
-                        >
-                            <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Student ID (Back)</div>
-                            <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
-                                <StudentCardBackTemplate ref={cardBackRef} data={formData} />
-                            </div>
-                        </motion.div>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Student ID (Back)</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <StudentCardBackTemplate ref={cardBackRef} data={formData} />
+                                    </div>
+                                </motion.div>
+                            </>
+                        ) : (
+                            <>
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Faculty ID (Front)</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <TeacherIdFrontTemplate ref={teacherIdFrontRef} data={formData} />
+                                    </div>
+                                </motion.div>
+
+                                <motion.div 
+                                    drag 
+                                    dragMomentum={false}
+                                    className="relative group document-card"
+                                >
+                                    <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Faculty ID (Back)</div>
+                                    <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                                        <TeacherIdBackTemplate ref={teacherIdBackRef} data={formData} />
+                                    </div>
+                                </motion.div>
+                            </>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

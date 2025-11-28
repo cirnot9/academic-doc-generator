@@ -225,3 +225,93 @@ export const generateRandomData = () => {
     studentPhoto: null
   };
 };
+
+export const generateTeacherData = () => {
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
+
+  const firstName = faker.person.firstName();
+  const lastName = faker.person.lastName();
+  const title = faker.helpers.arrayElement(['Dr.', 'Prof.', 'Mr.', 'Ms.', 'Mrs.']);
+
+  // University/Institution
+  const institution = "Hachimi University";
+  
+  // Department and subjects
+  const departments = [
+    { name: "Computer Science", college: "College of Science and Engineering", subjects: ["Data Structures", "Algorithm Design", "Software Engineering", "Database Systems"] },
+    { name: "Mathematics", college: "College of Science and Engineering", subjects: ["Calculus", "Linear Algebra", "Statistics", "Discrete Mathematics"] },
+    { name: "Business Administration", college: "McCoy College of Business", subjects: ["Management", "Marketing", "Finance", "Economics"] },
+    { name: "Psychology", college: "College of Liberal Arts", subjects: ["Cognitive Psychology", "Social Psychology", "Research Methods", "Abnormal Psychology"] },
+    { name: "English Literature", college: "College of Liberal Arts", subjects: ["Creative Writing", "American Literature", "Composition", "Literary Theory"] }
+  ];
+
+  const selectedDepartment = faker.helpers.arrayElement(departments);
+  
+  // Employment details
+  const hireDate = faker.date.past({ years: faker.number.int({ min: 2, max: 15 }) });
+  const employeeId = `FAC-${faker.string.numeric(4)}`;
+  
+  // Teacher ID Card dates
+  const idIssueDate = new Date(hireDate);
+  idIssueDate.setDate(idIssueDate.getDate() + faker.number.int({ min: 30, max: 90 }));
+  const idValidDate = new Date(idIssueDate);
+  idValidDate.setFullYear(idValidDate.getFullYear() + 3);
+
+  // Teaching certificate
+  const certificationDate = faker.date.past({ years: faker.number.int({ min: 5, max: 20 }) });
+  
+  // Salary details
+  const baseSalary = faker.number.int({ min: 45000, max: 95000 });
+  const payPeriodStart = faker.date.recent({ days: 30 });
+  const payPeriodEnd = new Date(payPeriodStart);
+  payPeriodEnd.setDate(payPeriodEnd.getDate() + 14);
+
+  return {
+    // Basic Info
+    universityName: institution,
+    universityLogo: '/university-logo.png',
+    universityAddress: `${faker.number.int({min: 100, max: 9999})} University Blvd, ${faker.location.city()}, ${faker.location.state({ abbreviated: true })}, ${faker.location.zipCode()}`,
+    teacherTitle: title,
+    teacherName: `${lastName}, ${firstName}`,
+    teacherFullName: `${title} ${firstName} ${lastName}`,
+    employeeID: employeeId,
+    address: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}`,
+    
+    // Academic Info
+    department: selectedDepartment.name,
+    college: selectedDepartment.college,
+    position: faker.helpers.arrayElement(['Assistant Professor', 'Associate Professor', 'Professor', 'Lecturer', 'Adjunct Professor']),
+    subjects: selectedDepartment.subjects,
+    
+    // Dates
+    hireDate: formatDate(hireDate),
+    certificationDate: formatDate(certificationDate),
+    payPeriodStart: formatDate(payPeriodStart),
+    payPeriodEnd: formatDate(payPeriodEnd),
+    
+    // Teacher ID Card
+    idIssueDate: formatDate(idIssueDate),
+    idValidDate: formatDate(idValidDate),
+    idCardSubtitle: 'FACULTY IDENTIFICATION CARD',
+    idColor: faker.helpers.arrayElement(['#dc2626', '#059669', '#7c3aed', '#d97706', '#0891b2']),
+    
+    // Salary info
+    baseSalary: baseSalary,
+    salaryFormatted: baseSalary.toLocaleString('en-US', {style: 'currency', currency: 'USD'}),
+    
+    // Officials
+    officials: {
+      dean: `${faker.person.lastName()}, ${faker.person.firstName()} (PhD)`,
+      hr: `${faker.person.lastName()}, ${faker.person.firstName()}`,
+      principal: `${faker.person.lastName()}, ${faker.person.firstName()} (EdD)`
+    },
+    
+    teacherPhoto: null
+  };
+};
